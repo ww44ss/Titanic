@@ -1,0 +1,50 @@
+---
+title: "Titanic"
+author: "Winston Saunders"
+date: "December 31, 2014"
+output: html_document
+---
+
+
+
+```{r "get data"}
+
+## this section gets the data and loads it into training and testing data files
+
+        ##set working directory
+
+        setwd("/Users/winstonsaunders/Documents/TitanicKaggle")
+
+        ## get data sets
+        training <- read.csv("train.csv")
+        testing <- read.csv("test.csv")
+
+```
+
+
+
+```{r "First model" }
+
+## This is a first simple model
+
+        ##Define training and test sets
+
+        train1 <- training[,c("Survived", "Pclass", "Sex", "Age", "Fare")]
+        test1 <-   testing[,c("Survived", "Pclass", "Sex", "Age", "Fare")]
+
+        ## set up training control
+
+        control1 <- trainControl(method = "cv", number = 3, allowParallel = TRUE)
+
+        ## model using random forest
+        model1 <- train(Survived~., data = train1, method="rf", trControl = control1, prox=FALSE)
+
+        prediction1 <- predict(model1, test1)
+
+
+        confusionMatrix(test1$Survived, prediction1)
+
+
+```
+
+
