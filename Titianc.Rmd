@@ -16,8 +16,8 @@ output: html_document
         setwd("/Users/winstonsaunders/Documents/TitanicKaggle")
 
         ## get data sets
-        training <- read.csv("train.csv")
-        testing <- read.csv("test.csv")
+        training <- read.csv("train.csv", na.strings=c("NA", ""))
+        testing <- read.csv("test.csv", na.strings=c("NA", ""))
 
 ```
 
@@ -29,21 +29,37 @@ output: html_document
 
         ##Define training and test sets
 
-        train1 <- training[,c("Survived", "Pclass", "Sex", "Age", "Fare")]
-        test1 <-   testing[,c("Survived", "Pclass", "Sex", "Age", "Fare")]
+        train1 <- training[,c("Survived","Sex", "Age", "Fare")]
+        test1 <-   testing[,c("Sex", "Age", "Fare")]
+
+        
+
+        ##Create a "Survived" column
+        test1$Survived<-0
+
+
+
+        ##simplify Age column
+        train1$Age <- 10*round(train1$Age/10,0)
 
         ## set up training control
 
-        control1 <- trainControl(method = "cv", number = 3, allowParallel = TRUE)
+        control1 <- trainControl(method = "cv", number = 4, allowParallel = TRUE)
 
         ## model using random forest
         model1 <- train(Survived~., data = train1, method="rf", trControl = control1, prox=FALSE)
 
         prediction1 <- predict(model1, test1)
 
+        prediction1[prediction1<0.5]<-0
+        prediction1[prediction1>=0.5]<-1
+        prediction1<-as.factor(prediction1)
+
+table(prediction1)
 
         confusionMatrix(test1$Survived, prediction1)
 
+test1$Survived
 
 ```
 
