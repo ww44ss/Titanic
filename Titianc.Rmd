@@ -5,6 +5,9 @@ date: "December 31, 2014"
 output: html_document
 ---
 
+###Introduction
+
+This is a model for the kaggle Titanic dataset. The idea is to make a predictive model of survivor. Judging from leaderboards, 
 
 
 ```{r "get data"}
@@ -19,36 +22,185 @@ output: html_document
         training <- read.csv("train.csv", na.strings=c("NA", ""))
         testing <- read.csv("test.csv", na.strings=c("NA", ""))
 
+        trainingRaw<-training
+        testingRaw<-testing
+
 ```
 
+##First model 
+
+Base first model on Sex and Age per tutorial. Since there are many NA's in the data we replace those with the mean ages for male or females.  
+  
+The model is trained with a _Random Forest_. 
+
+```{r "clean data1"}
+
+  ## Clean the data
+
+        ## calculate the median age for the population, men and women
+        meanAge<-mean(training$Age[is.na(training$Age)==FALSE])
+
+        meanMaleAge<-mean(training$Age[training$Sex=="male"&is.na(training$Age)==FALSE])
+        meanFemaleAge<-mean(training$Age[training$Sex=="female"&is.na(training$Age)==FALSE])
+
+        ## substitute median ages based on sex
+        
+        training$Age[is.na(training$Age)&training$Sex=="male"]<-meanMaleAge
+        training$Age[is.na(training$Age)&training$Sex=="female"]<-meanFemaleAge
 
 
-```{r "First model" }
+        testing$Age[is.na(testing$Age)&testing$Sex=="male"]<-meanMaleAge
+        testing$Age[is.na(testing$Age)&testing$Sex=="female"]<-meanFemaleAge
+
+
+```
+
+```{r "First model", warning=FALSE, echo=FALSE}
 
 ## This is a first simple model
 
-        ## create data sub partition
+
+      ## create data sub partition
 
         require(caret)
         set.seed(8675309)
         xx <- createDataPartition(y=training$Survived, p=0.80, list=FALSE)
-        train1<-training[xx,]
-        test1<-training[-xx,]
+   
 
 
         ##Define training and test sets
 
-        train1 <- train1[,c("Survived","Sex", "Age", "Fare")]
-        test1 <-   test1[,c("Survived","Sex", "Age", "Fare")]
+        train1<-training[xx,]
+        test1<-training[-xx,]
+
+        train1 <- train1[,c("Survived","Sex", "Age")]
+        test1 <-   test1[,c("Survived","Sex", "Age")]
 
 
-        ##simplify Age column by bucketing
+        ## simplify Age column by bucketing
         ## group in multiples of 5*n+1 (1, 6, 11, ...)
-        train1$Age <- 5*round(train1$Age/5,0)+1
+        ## train1$Age2 <- 16*round(train1$Age/16,0)
+        ## test1$Age2 <- 16*round(test1$Age/16,0)
 
         ## set up training control
 
-        control1 <- trainControl(method = "cv", number = 4, allowParallel = TRUE)
+        control1 <- trainControl(method = "cv")
+
+        ## model using random forest
+
+        model1 <- train(Survived~., data = train1, method="rf", trControl = control1, prox=FALSE)
+
+        prediction1 <- predict(model1, test1)
+
+        ## assign to zero or one. 
+
+        prediction1[prediction1<0.5]<-0
+        prediction1[prediction1>=0.5]<-1
+        prediction1<-as.factor(prediction1)
+
+        t<-table(prediction1, test1$Survived)
+
+        conf<-confusionMatrix(test1$Survived, prediction1)
+
+
+```
+
+Here is the confusion table
+
+```{r}
+conf$table
+```
+ 
+The accuracy is `r round(100*conf$overall[1],1)`%.
+
+###Second Approach
+
+Age data substitution may be a critical factor in model accuracy. Age plays a strong role in survivability. There are a lorge number of NAs in the age data which need to be modeled. 
+
+Let's see if the model above, which replaces the age by the median, can be improved. Since Passenger class affects survival let's look for dependency there. 
+
+
+```{r "clean data 2", fig.align='center'}
+
+        ## a key observation is that replacing age is a key swing point.
+        ## survival <- age <- lots of blanks <- pay more attention here
+
+        ## restore original data
+        training<-trainingRaw
+        testing<-testingRaw
+
+        ## look at data
+
+        require(ggplot2)
+        p<-ggplot(training, aes(factor(Pclass), Age)) + geom_boxplot()
+        p<-p+facet_grid(.~Sex)
+        p<-p+ggtitle("Age and Passenger Class")
+        p
+
+
+        
+
+```
+
+```{r, "age model", echo=FALSE,warning=FALSE}
+
+        ## to create model first get rid of NA rows in Age
+        trainfull<-training[is.na(training$Age)==FALSE, ]
+        ## fit model 
+        agemodel<-glm(Age~Pclass+Sex, data=trainfull)
+        
+        ## test model
+        ## make preductions
+        agePredict<-predict(agemodel, trainfull)
+
+        ## calculate rsme
+        error=agePredict-trainfull$Age
+        rmseModel=sqrt(mean(error^2))
+
+        ## compare to rsme of using just mean as predictor
+        error=mean(trainfull$Age) - trainfull$Age
+        rmseMean=sqrt(mean(error^2))
+        rmseMean
+        
+
+```
+
+Using an age model the RMSE of a fit is `r round(rmseModel,1)` versus of using the mean `r round(rmseMean, 1)`. An improvement. So I'l use that to fill in blanks.
+
+
+```{r "Second model", echo=FALSE, warning=FALSE }
+
+## This is a first simple model
+
+
+       
+
+        require(caret)
+        set.seed(8675309)
+        xx <- createDataPartition(y=training$Survived, p=0.80, list=FALSE)
+   
+
+
+        ##Define training and test sets
+
+        train1<-training[xx,]
+        test1<-training[-xx,]
+
+        train1 <- train1[,c("Survived","Sex", "Age", "Fare", "Pclass")]
+        test1 <-   test1[,c("Survived","Sex", "Age", "Fare", "Pclass")]
+
+        train1[is.na(train1$Age)==TRUE]<- predict(agemodel, as.data.frame(train1$Pclass, train1$Sex ))
+
+        for(i in 1:length(train1)) {
+                if (train1$Age[i]==NA)  
+                        train1$Age[i]<-predict(agemodel, train1[i,])
+             ##NOT QUITE WORKING   
+        }
+
+
+        ## set up training control
+
+        control1 <- trainControl(method = "cv")
 
         ## model using random forest
         model1 <- train(Survived~., data = train1, method="rf", trControl = control1, prox=FALSE)
@@ -61,12 +213,11 @@ output: html_document
         prediction1[prediction1>=0.5]<-1
         prediction1<-as.factor(prediction1)
 
-table(prediction1)
+        table(prediction1, test1$Survived)
 
         confusionMatrix(test1$Survived, prediction1)
 
-test1$Survived
+        test1$Survived
 
 ```
-
 
