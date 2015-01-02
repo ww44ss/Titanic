@@ -27,20 +27,24 @@ output: html_document
 
 ## This is a first simple model
 
+        ## create data sub partition
+
+        require(caret)
+        set.seed(8675309)
+        xx <- createDataPartition(y=training$Survived, p=0.80, list=FALSE)
+        train1<-training[xx,]
+        test1<-training[-xx,]
+
+
         ##Define training and test sets
 
-        train1 <- training[,c("Survived","Sex", "Age", "Fare")]
-        test1 <-   testing[,c("Sex", "Age", "Fare")]
-
-        
-
-        ##Create a "Survived" column
-        test1$Survived<-0
+        train1 <- train1[,c("Survived","Sex", "Age", "Fare")]
+        test1 <-   test1[,c("Survived","Sex", "Age", "Fare")]
 
 
-
-        ##simplify Age column
-        train1$Age <- 10*round(train1$Age/10,0)
+        ##simplify Age column by bucketing
+        ## group in multiples of 5*n+1 (1, 6, 11, ...)
+        train1$Age <- 5*round(train1$Age/5,0)+1
 
         ## set up training control
 
@@ -50,6 +54,8 @@ output: html_document
         model1 <- train(Survived~., data = train1, method="rf", trControl = control1, prox=FALSE)
 
         prediction1 <- predict(model1, test1)
+
+
 
         prediction1[prediction1<0.5]<-0
         prediction1[prediction1>=0.5]<-1
