@@ -113,11 +113,11 @@ conf$table
  
 The accuracy is `r round(100*conf$overall[1],1)`%.
 
-###Second Approach
+###Second Approach - nested feature modeling
 
-Age data substitution may be a critical factor in model accuracy. Age plays a strong role in survivability. There are a lorge number of NAs in the age data which need to be modeled. 
+Age data substitution appears to be a critical factor in model accuracy. Age plays a strong role in survivability. Since there are a lorge number of NAs in the age data which need to be modeled, let's see if the method of directly substituting mean age can be improved.  
 
-Let's see if the model above, which replaces the age by the median, can be improved. Since Passenger class affects survival let's look for dependency there. 
+Since Passenger class affects survival it's logical to look for dependency there. 
 
 
 ```{r "clean data 2", fig.align='center'}
