@@ -33,7 +33,7 @@ Base first model on Sex and Age per tutorial. Since there are many NA's in the d
   
 The model is trained with a _Random Forest_. 
 
-```{r "clean data1"}
+```{r "clean data1", echo=FALSE}
 
   ## Clean the data
 
@@ -54,8 +54,15 @@ The model is trained with a _Random Forest_.
 
 
 ```
+The mean male age is `r round(meanMaleAge, 1)` years and the mean female age is `r round(meanFemaleAge,1)` years. Here is a snapshot of the cleaned data.  Note the fractional year on substituted values. 
 
-```{r "First model", warning=FALSE, echo=FALSE}
+```{r}
+training[1:6,c("Survived", "Age", "Sex")]
+```
+
+The first model looks at the following function
+
+```{r "First model", warning=FALSE, echo=33, message=FALSE}
 
 ## This is a first simple model
 
@@ -73,8 +80,8 @@ The model is trained with a _Random Forest_.
         train1<-training[xx,]
         test1<-training[-xx,]
 
-        train1 <- train1[,c("Survived","Sex", "Age")]
-        test1 <-   test1[,c("Survived","Sex", "Age")]
+        #train1 <- train1[,c("Survived","Sex", "Age")]
+        #test1 <-   test1[,c("Survived","Sex", "Age")]
 
 
         ## simplify Age column by bucketing
@@ -88,7 +95,9 @@ The model is trained with a _Random Forest_.
 
         ## model using random forest
 
-        model1 <- train(Survived~., data = train1, method="rf", trControl = control1, prox=FALSE)
+        modelfunction<-Survived~Age+Sex
+
+        model1 <- train(modelfunction, data = train1, method="rf", trControl = control1, prox=FALSE)
 
         prediction1 <- predict(model1, test1)
 
@@ -115,12 +124,11 @@ The accuracy is `r round(100*conf$overall[1],1)`%.
 
 ###Second Approach - nested feature modeling
 
-Age data substitution appears to be a critical factor in model accuracy. Age plays a strong role in survivability. Since there are a lorge number of NAs in the age data which need to be modeled, let's see if the method of directly substituting mean age can be improved.  
+Age data substitution appears to be a critical factor in model accuracy. Age plays a strong role in survival. Since there are a lorge number of NAs in the age data which need to be modeled, let's see if the method of directly substituting mean age can be improved.  
 
 Since Passenger class affects survival it's logical to look for dependency there. 
 
-
-```{r "clean data 2", fig.align='center'}
+```{r "look at data", fig.align='center', echo=FALSE, warning=FALSE, message=FALSE}
 
         ## a key observation is that replacing age is a key swing point.
         ## survival <- age <- lots of blanks <- pay more attention here
@@ -129,24 +137,35 @@ Since Passenger class affects survival it's logical to look for dependency there
         training<-trainingRaw
         testing<-testingRaw
 
+
+        require(caret)
+        set.seed(8675308)
+        xx <- createDataPartition(y=training$Survived, p=0.70, list=FALSE)
+  
+        ##Define training and test sets
+
+        train1<-training[xx,]
+        test1<-training[-xx,]
+
+
         ## look at data
 
         require(ggplot2)
-        p<-ggplot(training, aes(factor(Pclass), Age)) + geom_boxplot()
+        p<-ggplot(train1, aes(factor(Pclass), Age)) + geom_boxplot()
         p<-p+facet_grid(.~Sex)
         p<-p+ggtitle("Age and Passenger Class")
-        p
-
-
-        
+        p    
 
 ```
 
-```{r, "age model", echo=FALSE,warning=FALSE}
+The age model is set up as follows
+
+```{r, "age model", echo=6,warning=FALSE}
 
         ## to create model first get rid of NA rows in Age
-        trainfull<-training[is.na(training$Age)==FALSE, ]
-        ## fit model 
+        trainfull<-train1[is.na(train1$Age)==FALSE, ]
+        testfull<-test1[is.na(train1$Age)==FALSE, ]
+        ## fit model dependent on Pclass and Sex
         agemodel<-glm(Age~Pclass+Sex, data=trainfull)
         
         ## test model
@@ -160,64 +179,62 @@ Since Passenger class affects survival it's logical to look for dependency there
         ## compare to rsme of using just mean as predictor
         error=mean(trainfull$Age) - trainfull$Age
         rmseMean=sqrt(mean(error^2))
-        rmseMean
-        
 
 ```
 
-Using an age model the RMSE of a fit is `r round(rmseModel,1)` versus of using the mean `r round(rmseMean, 1)`. An improvement. So I'l use that to fill in blanks.
+It slightly improves the RMSE of a fit is `r round(rmseModel,1)` versus of using the mean `r round(rmseMean, 1)`. An improvement. So I'l use that to fill in blanks.
+
+Another way to look at this data is by buckets
+
+```{r "clean data with Model", echo=FALSE}
+
+        ## First make an extra column of predicted values
+
+        ageTestPredict<-predict(agemodel, test1)
+        test1$AgeModel<-ageTestPredict
+
+        ageTrainPredict<-predict(agemodel, train1)
+        train1$AgeModel<-ageTrainPredict
+
+        ## Fill in NA's with Model values
+
+        train1[is.na(train1$Age)==TRUE,"Age"]<-train1[is.na(train1$Age)==TRUE,"AgeModel"]
+        test1[is.na(test1$Age)==TRUE,"Age"]<-test1[is.na(test1$Age)==TRUE,"AgeModel"]
 
 
-```{r "Second model", echo=FALSE, warning=FALSE }
-
-## This is a first simple model
+```
 
 
-       
+```{r "Prediction 2", echo=6, warning=FALSE }
 
-        require(caret)
-        set.seed(8675309)
-        xx <- createDataPartition(y=training$Survived, p=0.80, list=FALSE)
-   
-
-
-        ##Define training and test sets
-
-        train1<-training[xx,]
-        test1<-training[-xx,]
-
-        train1 <- train1[,c("Survived","Sex", "Age", "Fare", "Pclass")]
-        test1 <-   test1[,c("Survived","Sex", "Age", "Fare", "Pclass")]
-
-        train1[is.na(train1$Age)==TRUE]<- predict(agemodel, as.data.frame(train1$Pclass, train1$Sex ))
-
-        for(i in 1:length(train1)) {
-                if (train1$Age[i]==NA)  
-                        train1$Age[i]<-predict(agemodel, train1[i,])
-             ##NOT QUITE WORKING   
-        }
-
-
-        ## set up training control
 
         control1 <- trainControl(method = "cv")
+        
+        ## the model function
+        modelfunction <- Survived~Age+Sex+Pclass
 
         ## model using random forest
-        model1 <- train(Survived~., data = train1, method="rf", trControl = control1, prox=FALSE)
+        model1 <- train(modelfunction, data = train1, method="rf", trControl = control1, prox=FALSE)
 
         prediction1 <- predict(model1, test1)
 
+        hist(prediction1)
 
+        
 
         prediction1[prediction1<0.5]<-0
         prediction1[prediction1>=0.5]<-1
         prediction1<-as.factor(prediction1)
 
-        table(prediction1, test1$Survived)
 
-        confusionMatrix(test1$Survived, prediction1)
-
-        test1$Survived
+        conf2<-confusionMatrix(test1$Survived, prediction1)
 
 ```
+
+Here is the confusion matrix
+```{r, echo=FALSE}
+conf2$table
+```
+
+The accuracy is `r round(100*conf2$overall[1],2)` is improved over the earlier `r round(100*conf$overall[1],2)`%.
 
