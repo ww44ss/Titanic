@@ -27,7 +27,10 @@ This is a model for the kaggle Titanic dataset. The idea is to make a predictive
 
 ```
 
-##First model 
+
+
+
+##Model One
 
 Base first model on Sex and Age per tutorial. Since there are many NA's in the data we replace those with the mean ages for male or females.  
   
@@ -122,7 +125,80 @@ conf$table
  
 The accuracy is `r round(100*conf$overall[1],1)`%.
 
-###Second Approach - nested feature modeling
+##Model One Point Five
+
+Let's look at Fare and Age
+
+
+```{r "look at data one five", fig.align='center', echo=FALSE, warning=FALSE, message=FALSE}
+
+        ## a key observation is that replacing age is a key swing point.
+        ## survival <- age <- lots of blanks <- pay more attention here
+
+        ## restore original data
+        training<-trainingRaw
+        testing<-testingRaw
+
+
+        require(caret)
+        set.seed(8675309)
+        xx <- createDataPartition(y=training$Survived, p=0.70, list=FALSE)
+  
+        ##Define training and test sets
+
+        train1<-training[xx,]
+        test1<-training[-xx,]
+
+        train1$Fare<-as.numeric(train1$Fare)
+        test1$Fare<-as.numeric(test1$Fare)
+
+
+
+```
+
+```{r "Simple model", echo=FALSE, fig.align='center'}
+
+        ## Make sure there are no zero fares
+        train1$Fare[train1$Fare==0]<-mean(train1$Fare)
+        test1$Fare[test1$Fare==0]<-mean(test1$Fare)
+        
+        ## Plot cleaned data
+        require(ggplot2)
+        p<-ggplot(train1, aes(Fare, Survived), color=Sex) + geom_point()
+        p<-p+facet_grid(.~Sex)
+        p<-p+ggtitle("Fare and Survived / Sex")
+        p   
+
+```
+
+```{r, "age Fix one five", echo=6,warning=FALSE}
+
+        ## to create model first get rid of NA rows in Age
+        trainfull<-train1[is.na(train1$Age)==FALSE, ]
+        testfull<-test1[is.na(train1$Age)==FALSE, ]
+        ## fit model dependent on Pclass and Sex
+        agemodel<-glm(Age~Pclass+Sex, data=trainfull)
+        
+        ## First make an extra column of predicted values
+
+                ageTestPredict<-predict(agemodel, test1)
+                test1$AgeModel<-ageTestPredict
+
+                ageTrainPredict<-predict(agemodel, train1)
+                train1$AgeModel<-ageTrainPredict
+
+
+        ## Fill in NA's with Model values
+
+                train1[is.na(train1$Age)==TRUE,"Age"]<-train1[is.na(train1$Age)==TRUE,"AgeModel"]
+                test1[is.na(test1$Age)==TRUE,"Age"]<-test1[is.na(test1$Age)==TRUE,"AgeModel"]
+
+```
+
+
+
+
+###Second Model - nested feature modeling
 
 Age data substitution appears to be a critical factor in model accuracy. Age plays a strong role in survival. Since there are a lorge number of NAs in the age data which need to be modeled, let's see if the method of directly substituting mean age can be improved.  
 
@@ -151,7 +227,7 @@ Since Passenger class affects survival it's logical to look for dependency there
         ## look at data
 
         require(ggplot2)
-        p<-ggplot(train1, aes(factor(Pclass), Age), color=Sex) + geom_boxplot(colour="blue")
+        p<-ggplot(train1, aes(factor(Pclass), Age)) + geom_boxplot(colour="blue")
         p<-p+facet_grid(.~Sex)
         p<-p+ggtitle("Age and Passenger Class")
         p    
@@ -186,7 +262,7 @@ RMSE of the age-fit is `r round(rmseModel,1)` versus of using the mean `r round(
 
 Here is a plot of the fitted age versus actual age. Note some values have been substituted...
 
-```{r "clean data with Model", echo=FALSE}
+```{r "clean data with Model", echo=FALSE, fig.align='center'}
 
         ## First make an extra column of predicted values
 
