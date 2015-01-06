@@ -10,7 +10,7 @@ output: html_document
 This is a model for the kaggle Titanic dataset. The idea is to make a predictive model of survivor. Judging from leaderboards, 
 
 
-```{r "get data"}
+```{r "get data", echo=9:10}
 
 ## this section gets the data and loads it into training and testing data files
 
@@ -45,12 +45,12 @@ The model is trained with a _Random Forest_.
 
         ## substitute median ages based on sex
         
-        training$Age[is.na(training$Age)&training$Sex=="male"]<-meanMaleAge
-        training$Age[is.na(training$Age)&training$Sex=="female"]<-meanFemaleAge
+                training$Age[is.na(training$Age)&training$Sex=="male"]<-meanMaleAge
+                training$Age[is.na(training$Age)&training$Sex=="female"]<-meanFemaleAge
 
 
-        testing$Age[is.na(testing$Age)&testing$Sex=="male"]<-meanMaleAge
-        testing$Age[is.na(testing$Age)&testing$Sex=="female"]<-meanFemaleAge
+                testing$Age[is.na(testing$Age)&testing$Sex=="male"]<-meanMaleAge
+                testing$Age[is.na(testing$Age)&testing$Sex=="female"]<-meanFemaleAge
 
 
 ```
@@ -103,8 +103,8 @@ The first model looks at the following function
 
         ## assign to zero or one. 
 
-        prediction1[prediction1<0.5]<-0
-        prediction1[prediction1>=0.5]<-1
+        prediction1[prediction1<0.75]<-0
+        prediction1[prediction1>=0.75]<-1
         prediction1<-as.factor(prediction1)
 
         t<-table(prediction1, test1$Survived)
@@ -151,7 +151,7 @@ Since Passenger class affects survival it's logical to look for dependency there
         ## look at data
 
         require(ggplot2)
-        p<-ggplot(train1, aes(factor(Pclass), Age)) + geom_boxplot()
+        p<-ggplot(train1, aes(factor(Pclass), Age), color=Sex) + geom_boxplot(colour="lightblue")
         p<-p+facet_grid(.~Sex)
         p<-p+ggtitle("Age and Passenger Class")
         p    
@@ -182,9 +182,9 @@ The age model is set up as follows
 
 ```
 
-It slightly improves the RMSE of a fit is `r round(rmseModel,1)` versus of using the mean `r round(rmseMean, 1)`. An improvement. So I'l use that to fill in blanks.
+RMSE of the age-fit is `r round(rmseModel,1)` versus of using the mean `r round(rmseMean, 1)`. 
 
-Another way to look at this data is by buckets
+Here is a plot of the fitted age versus actual age. Note some values have been substituted...
 
 ```{r "clean data with Model", echo=FALSE}
 
@@ -196,14 +196,22 @@ Another way to look at this data is by buckets
         ageTrainPredict<-predict(agemodel, train1)
         train1$AgeModel<-ageTrainPredict
 
+
         ## Fill in NA's with Model values
 
         train1[is.na(train1$Age)==TRUE,"Age"]<-train1[is.na(train1$Age)==TRUE,"AgeModel"]
         test1[is.na(test1$Age)==TRUE,"Age"]<-test1[is.na(test1$Age)==TRUE,"AgeModel"]
 
+        ## Plot the new data
+                p <- ggplot(train1, aes(Age, AgeModel, color=Sex)) + geom_point()
+                p <- p+ facet_grid(.~Survived)
+                p <- p+ ggtitle("Age versus AgeModel / Survived")
+                p 
+
 
 ```
 
+The survivial model function is:  
 
 ```{r "Prediction 2", echo=6, warning=FALSE }
 
@@ -224,8 +232,8 @@ Another way to look at this data is by buckets
 
         
 
-        prediction1[prediction1<0.65]<-0
-        prediction1[prediction1>=0.65]<-1
+        prediction1[prediction1<0.7]<-0
+        prediction1[prediction1>=0.7]<-1
         prediction1<-as.factor(prediction1)
 
 
@@ -233,17 +241,16 @@ Another way to look at this data is by buckets
 
 ```
 
-Here is the confusion matrix
+Resulting in the following confusion matrix  
 ```{r, echo=FALSE}
 conf2$table
 ```
 
-The accuracy is `r round(100*conf2$overall[1],2)` is improved over the earlier `r round(100*conf$overall[1],2)`%.
+The accuracy is `r round(100*conf2$overall[1],2)` versus earlier `r round(100*conf$overall[1],2)`%.
 
-###Model3
+###Model4
 
-The above approach improved accuracy to about 83%. The next shot will look at the influence of siblings and parents
-
+Let's try seperate models for men and women.
 
 ```{r "look at data3", fig.align='center', echo=FALSE, warning=FALSE, message=FALSE}
 
@@ -257,7 +264,7 @@ The above approach improved accuracy to about 83%. The next shot will look at th
 
         require(caret)
         set.seed(8675309)
-        xx <- createDataPartition(y=training$Survived, p=0.70, list=FALSE)
+        xx <- createDataPartition(y=training$Survived, p=0.65, list=FALSE)
   
         ##Define training and test sets
 
@@ -268,124 +275,78 @@ The above approach improved accuracy to about 83%. The next shot will look at th
 
 ```
 
-The age model is set up as follows
+Segregate
+
+```{r, "segregate data"}
+
+        train1.m<-train1[train1$Sex=="male",]
+        train1.f<-train1[train1$Sex=="female",]
+
+        test1.m<-test1[test1$Sex=="male",]
+        test1.f<-test1[test1$Sex=="female",]
+
+```
+
 
 ```{r, "age model3", echo=6,warning=FALSE}
 
         ## to create model first get rid of NA rows in Age
-        trainfull<-train1[is.na(train1$Age)==FALSE, ]
-        testfull<-test1[is.na(train1$Age)==FALSE, ]
+        trainfull.m<-train1.m[is.na(train1.m$Age)==FALSE, ]
+        testfull.m<-test1.m[is.na(train1.m$Age)==FALSE, ]
+
+        trainfull.f<-train1.f[is.na(train1.f$Age)==FALSE, ]
+        testfull.f<-test1.f[is.na(train1.f$Age)==FALSE, ]
+
         ## fit model dependent on Pclass and Sex
-        agemodel<-glm(Age~Pclass+Sex+SibSp, data=trainfull)
+        agemodel.m<-glm(Age~Pclass, data=trainfull.m)
+        agemodel.f<-glm(Age~Pclass, data=trainfull.f)
      
 ```
 
-It slightly improves the RMSE of a fit is `r round(rmseModel,1)` versus of using the mean `r round(rmseMean, 1)`. An improvement. So I'l use that to fill in blanks.
-
-Another way to look at this data is by buckets
 
 ```{r "clean data with Model3", echo=FALSE}
 
         ## First make an extra column of predicted values
 
-        ageTestPredict<-predict(agemodel, test1)
-        test1$AgeModel<-ageTestPredict
+        ageTestPredict.m<-predict(agemodel.m, test1.m)
+        ageTestPredict.f<-predict(agemodel.f, test1.f)
 
-        ageTrainPredict<-predict(agemodel, train1)
-        train1$AgeModel<-ageTrainPredict
+        test1.m$AgeModel<-ageTestPredict.m
+        test1.f$AgeModel<-ageTestPredict.f
+
+        ageTrainPredict.m<-predict(agemodel.m, train1.m)
+        ageTrainPredict.f<-predict(agemodel.f, train1.f)
+
+        train1.m$AgeModel<-ageTrainPredict.m
+        train1.f$AgeModel<-ageTrainPredict.f
 
         ## Fill in NA's with Model values
 
-        train1[is.na(train1$Age)==TRUE,"Age"]<-train1[is.na(train1$Age)==TRUE,"AgeModel"]
-        test1[is.na(test1$Age)==TRUE,"Age"]<-test1[is.na(test1$Age)==TRUE,"AgeModel"]
+        train1.m[is.na(train1.m$Age)==TRUE,"Age"]<-train1.m[is.na(train1.m$Age)==TRUE,"AgeModel"]
+        train1.f[is.na(train1.f$Age)==TRUE,"Age"]<-train1.f[is.na(train1.f$Age)==TRUE,"AgeModel"]
+
+        test1.m[is.na(test1.m$Age)==TRUE,"Age"]<-test1.m[is.na(test1.m$Age)==TRUE,"AgeModel"]
+        test1.f[is.na(test1.f$Age)==TRUE,"Age"]<-test1.f[is.na(test1.f$Age)==TRUE,"AgeModel"]
 
         ## plot the results
         require(ggplot2)        
 
-        p <- ggplot(train1, aes(Age, AgeModel, color=Sex)) + geom_point()
+        p <- ggplot(train1.m, aes(Age, AgeModel, color=factor(Pclass))) + geom_point()
                 p <- p+ facet_grid(.~Survived)
-                p <- p+ ggtitle("Age versus AgeModel / Survived")
+                p <- p+ ggtitle("MALE Age versus AgeModel / Survived")
                 p 
 
+        p <- ggplot(train1.f, aes(Age, AgeModel, color=factor(Pclass))) + geom_point()
+                p <- p+ facet_grid(.~Survived)
+                p <- p+ ggtitle("FEMALE Age versus AgeModel / Survived")
+                p 
+
+
+
 ```
 
-This time include a "sibling or parent" column
-
-```{r "helper model"}
-
-        #train1[Helper]<-NA
-        #test1[Helper]<-NA
-        
-
-        ## First shot
-        ## This approach did not improve accuracy or change prediction
-
-        ## this is a function that just is 1 is there is a subling or parent or spouse on board
-        ## and is otherwise zero
-        ## train1$Helper <- round((train1$SibSp+train1$Parch)/(train1$SibSp+train1$Parch+.01), 0)
-        ## test1$Helper <- round((test1$SibSp+test1$Parch)/(test1$SibSp+test1$Parch+.01), 0)
-
-       
-        ## Second shot
-        ## This did not improve
-
-        ## this is a function that just is 1 is there is a subling 
-        ## and is otherwise zero
-        train1$Helper <- round((train1$SibSp)/(train1$SibSp+.01), 0)
-        test1$Helper <- round((test1$SibSp)/(test1$SibSp+.01), 0)
-
- 
-        ## Third shot
- 
-
-        ## this is a function that just is 1 is there is a subling 
-        ## and is otherwise zero
-        train1$Helper <- round((train1$Parch)/(train1$Parch+.01), 0)
-        test1$Helper <- round((test1$Parch)/(test1$Parch+.01), 0)
-
-        ## looks at Helper 
-
-        require(ggplot2)
-        p<-ggplot(train1, aes(factor(Helper), Age)) + geom_violin()
-        p<-p+facet_grid(Survived~.)
-        p<-p+ggtitle("Age and Survival Class / Helper")
-        p  
-
-
-
-
-        
-```
 
 Based on this plot there is a substantial population of "young" survivors who have helpers.
-
-
-```{r "refined helper model"}
-
-        #train1[Helper]<-NA
-        #test1[Helper]<-NA
-        
-        ## this is a function that just is 1 is there is a subling or parent or spouse on board
-        ## and is otherwise zero
-
-        #train1$Helper <- round((train1$SibSp+train1$Parch)/(train1$SibSp+train1$Parch+.01), 0)
-        #test1$Helper <- round((test1$SibSp+test1$Parch)/(test1$SibSp+test1$Parch+.01), 0)
-
-        #train1$Helper[train1$Age>15] <- 0
-        #test1$Helper[test1$Age>15] <- 0
-
-        ## looks at Helper 
-
-        require(ggplot2)
-        p<-ggplot(train1, aes(factor(Survived), Age)) + geom_violin()
-        p<-p+facet_grid(Helper~.)
-        p<-p+ggtitle("Age and Survival / Helper")
-        p  
-
-
-        
-```
-
 
 ```{r "Prediction 3", echo=6, warning=FALSE }
 
@@ -393,49 +354,72 @@ Based on this plot there is a substantial population of "young" survivors who ha
         control1 <- trainControl(method = "cv")
         
         ## the model function
-        modelfunction <- Survived~Age+Pclass+Helper+Sex
+        modelfunction <- Survived~AgeModel+Pclass+Sex
 
         require(MASS)
         ## model using random forest
-        model1 <- train(modelfunction, data = train1, method="rf", trControl = control1, prox=FALSE)
+        model1.m <- train(modelfunction, data = train1.m, method="rf", trControl = control1, prox=FALSE)
+        model1.f <- train(modelfunction, data = train1.f, method="rf", trControl = control1, prox=FALSE)
 
-        prediction3 <- predict(model1, test1)
+        prediction3.f <- predict(model1.f, test1.f)
+        prediction3.m <- predict(model1.m, test1.m)
 
-        hist(prediction3)
+        hist(prediction3.f)
+        hist(prediction3.m)
 
         ## create diagnostic plot
-                test1x<-cbind(test1, prediction3)
+                test1x.m<-cbind(test1.m, prediction3.m)
 
         
-                p <- ggplot(test1x, aes(prediction3, Survived, color=Age)) + geom_point()
-                p <- p+facet_grid(.~Sex)
+                p <- ggplot(test1x.m, aes(prediction3.m, Survived, color=Age)) + geom_point()
+                p <- p+facet_grid(.~Pclass)
                 p <- p+ scale_color_gradient(low="red", high="darkgreen")
-                p <- p+ggtitle("Prediction vs Survival / Helper")
+                p <- p+ggtitle("Male: Prediction vs Survival")
                 p 
       
-        
 
-        prediction3[prediction3<0.8]<-0
-        prediction3[prediction3>=0.8]<-1
-        prediction3<-as.factor(prediction3)
+
+                test1x.f<-cbind(test1.f, prediction3.f)
+                p <- ggplot(test1x.f, aes(prediction3.f, Survived, color=Age)) + geom_point()
+                p <- p+facet_grid(.~Pclass)
+                p <- p+ scale_color_gradient(low="red", high="darkgreen")
+                p <- p+ggtitle("Feale: Prediction vs Survival")
+                p 
+
+        prediction3.m[prediction3.m<0.35]<-0
+        prediction3.m[prediction3.m>=0.35]<-1
+        #prediction3.m<-as.factor(prediction3.m)
+
+        prediction3.f[prediction3.f<0.75]<-0
+        prediction3.f[prediction3.f>=0.75]<-1
+        #prediction3.f<-as.factor(prediction3.f)
 
        
 
 
-        conf3<-confusionMatrix(test1$Survived, prediction3)
+       conf3.m<-confusionMatrix(test1.m$Survived, prediction3.m)
+       conf3.f<-confusionMatrix(test1.f$Survived, prediction3.f)
 
 ```
 
 Here is the confusion matrix
-```{r, echo=FALSE}
-conf3$table
+```{r, echo=TRUE}
+conf3.m$table
 ```
 
-The accuracy is `r round(100*conf3$overall[1],2)` is improved over the earlier `r round(100*conf2$overall[1],2)`%.
+Here is the confusion matrix
+```{r, echo=TRUE}
+conf3.f$table
+```
+
+
+The accuracy is `r round(100*conf3.m$overall[1],2)` for males and `r round(100*conf3.f$overall[1],2)`for females compares to the earlier `r round(100*conf2$overall[1],2)`%.
 
 ##Attempt 4
 
-It looks like we are still getting old men wrong... so let's add a feature called "OldFarts"
+I tried an "Old Fart" model (identify old men, some of whom seemed to have survived). But that did not impove accuracy. 
+
+
 
 
 ```{r "look at data4", fig.align='center', echo=FALSE, warning=FALSE, message=FALSE}
