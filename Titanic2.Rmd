@@ -164,8 +164,9 @@ Let's look at Fare and Age
         
         ## Plot cleaned data
         require(ggplot2)
-        p<-ggplot(train1, aes(Fare, Survived), color=Sex) + geom_point()
+        p<-ggplot(train1, aes(Fare, Survived)) + geom_point()
         p<-p+facet_grid(.~Sex)
+        p <- p + scale_x_log10()
         p<-p+ggtitle("Fare and Survived / Sex")
         p   
 
@@ -195,7 +196,49 @@ Let's look at Fare and Age
 
 ```
 
+```{r "Prediction one five", echo=6, warning=FALSE, fig.align='center' }
 
+
+        control1 <- trainControl(method = "cv")
+        
+        ## the model function
+        modelfunction <- Survived~Age+factor(Sex)+factor(Pclass)+Fare
+
+        ## model using random forest
+        model1 <- train(modelfunction, data = train1, method="rf", trControl = control1, prox=FALSE)
+
+        prediction1 <- predict(model1, test1)
+
+```
+A histogram of the predictions and a graph of the results is shows reasonable accuracy.  
+ 
+```{r "plotz one five", echo=FALSE, fig.align='center'}
+
+        hist(prediction1)
+
+        test1x<-cbind(prediction1, test1)
+
+        p <- ggplot(test1x, aes(prediction1, Survived, color=Sex)) + geom_point()
+        p <- p+ facet_grid(.~Pclass)
+        p <- p+ ggtitle("Prediction vs. Survived / Pclass")
+        p 
+   
+
+        prediction1[prediction1<0.616]<-0
+        prediction1[prediction1>=0.616]<-1
+        prediction1<-as.factor(prediction1)
+
+
+        conf2<-confusionMatrix(test1$Survived, prediction1)
+
+```
+
+Resulting in the following confusion matrix  
+```{r, echo=FALSE}
+conf2$table
+```
+
+The accuracy is `r round(100*conf2$overall[1],2)` versus earlier `r round(100*conf$overall[1],2)`%.
 
 
 ###Second Model - nested feature modeling
