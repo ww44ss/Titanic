@@ -1,0 +1,154 @@
+---
+title: "Titanic"
+author: "Winston Saunders"
+date: "December 31, 2014"
+output: html_document
+---
+
+###Introduction
+
+This is a model for the kaggle Titanic dataset. The idea is to make a predictive model of survivor. Judging from leaderboards, 
+
+
+```{r "get data", echo=9:10}
+
+## this section gets the data and loads it into training and testing data files
+
+        ##set working directory
+
+        setwd("/Users/winstonsaunders/Documents/TitanicKaggle")
+
+        ## get data sets
+        training <- read.csv("train.csv", na.strings=c("NA", ""))
+        testing <- read.csv("test.csv", na.strings=c("NA", ""))
+
+        trainingRaw<-training
+        testingRaw<-testing
+
+```
+
+
+
+
+##Model TWO
+
+Base first model on Sex and Age per tutorial. Since there are many NA's in the data we replace those with the mean ages for male or females.  
+  
+The model is trained with a _Random Forest_. 
+
+```{r "clean data1", echo=FALSE}
+
+  ## Clean the data
+
+        ## calculate the median age for the population, men and women
+        meanAge<-mean(training$Age[is.na(training$Age)==FALSE])
+
+        meanMaleAge<-mean(training$Age[training$Sex=="male"&is.na(training$Age)==FALSE])
+        meanFemaleAge<-mean(training$Age[training$Sex=="female"&is.na(training$Age)==FALSE])
+
+        ## substitute median ages based on sex
+        
+                training$Age[is.na(training$Age)&training$Sex=="male"]<-meanMaleAge
+                training$Age[is.na(training$Age)&training$Sex=="female"]<-meanFemaleAge
+
+
+                testing$Age[is.na(testing$Age)&testing$Sex=="male"]<-meanMaleAge
+                testing$Age[is.na(testing$Age)&testing$Sex=="female"]<-meanFemaleAge
+
+
+```
+The mean male age is `r round(meanMaleAge, 1)` years and the mean female age is `r round(meanFemaleAge,1)` years. Here is a snapshot of the cleaned data.  Note the fractional year on substituted values. 
+
+```{r}
+training[1:6,c("Survived", "Age", "Sex")]
+```
+
+The first model looks at the following function
+
+```{r "First model", warning=FALSE, echo=33, message=FALSE}
+
+## This is a first simple model
+
+
+      ## create data sub partition
+
+        require(caret)
+        set.seed(8675309)
+        xx <- createDataPartition(y=training$Survived, p=0.80, list=FALSE)
+   
+
+
+        ##Define training and test sets
+
+        train1<-training[xx,]
+        test1<-training[-xx,]
+
+        #train1 <- train1[,c("Survived","Sex", "Age")]
+        #test1 <-   test1[,c("Survived","Sex", "Age")]
+
+
+        ## simplify Age column by bucketing
+        ## group in multiples of 5*n+1 (1, 6, 11, ...)
+        ## train1$Age2 <- 16*round(train1$Age/16,0)
+        ## test1$Age2 <- 16*round(test1$Age/16,0)
+
+        ## set up training control
+
+        control1 <- trainControl(method = "cv")
+
+        ## model using random forest
+
+        modelfunction<-Survived~Age+Sex
+
+        model1 <- train(modelfunction, data = train1, method="rf", trControl = control1, prox=FALSE)
+
+        prediction1 <- predict(model1, test1)
+        
+
+
+
+        ## assign to zero or one. 
+
+        prediction1[prediction1<0.75]<-0
+        prediction1[prediction1>=0.75]<-1
+        prediction1<-as.factor(prediction1)
+
+
+        t<-table(prediction1, test1$Survived)
+
+        conf<-confusionMatrix(test1$Survived, prediction1)
+
+
+```
+
+Write final output
+
+```{r "output", echo=11}
+        
+        ## Make model prediciton
+        predictionT <- predict(model1, testing)
+
+        ## factor into choices
+        predictionT[predictionT<0.75]<-0
+        predictionT[predictionT>=0.75]<-1
+        Survived<-predictionT
+        PassengerId<-testing$PassengerId
+
+        ## Write output file
+        Output<-cbind(PassengerId, Survived)
+        write.csv(Output, "Model1.csv", row.names=FALSE)
+
+```
+
+```{r}
+head(Output)
+```
+
+Here is the confusion table
+
+```{r}
+conf$table
+```
+ 
+The accuracy is `r round(100*conf$overall[1],1)`%.
+
