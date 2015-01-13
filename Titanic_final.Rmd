@@ -21,16 +21,16 @@ This is a model for the kaggle Titanic dataset. The idea is to make a predictive
         ## get data sets
         ## use read data steps from the dude
 
-
+        library(RCurl)
         readData <- function(path.name, file.name, column.types, missing.types) {
-                read.csv( url( paste(path.name, file.name, sep="") ), 
+                read.csv( url( paste0(path.name, file.name) ), 
                 colClasses=column.types,
                 na.strings=missing.types )
                 
 }
 
 
-        Titanic.path <- "https://raw.github.com/ww44ss/Titanic"
+        Titanic.path <- "http://raw.github.com/ww44ss/Titanic/master/"
         train.data.file <- "train.csv"
         test.data.file <- "test.csv"
         missing.types <- c("NA", "")
@@ -48,9 +48,8 @@ This is a model for the kaggle Titanic dataset. The idea is to make a predictive
                         'factor'     # Embarked
 )
 test.column.types <- train.column.types[-2]     # # no Survived column in test.csv
-
-        training <- readData(Titanic.path, train.data.file, 
-                      train.column.types, missing.types)
+        
+        training <- readData(Titanic.path, train.data.file, train.column.types, missing.types)
         testing <-  readData(Titanic.path, test.data.file, 
                       test.column.types, missing.types)
 
