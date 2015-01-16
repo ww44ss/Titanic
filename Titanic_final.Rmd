@@ -1,5 +1,5 @@
 ---
-title: "Titanic"
+title: "Titanic Model Approach"
 author: "Winston Saunders"
 date: "December 31, 2014"
 output: html_document
@@ -7,51 +7,63 @@ output: html_document
 
 ###Introduction
 
-This is a model for the kaggle Titanic dataset. The idea is to make a predictive model of survivor. Judging from leaderboards, 
+This is a model for the kaggle Titanic dataset. The idea is to make a predictive model of survivor. Judging from leaderboards, I need to get to predictive accuracy of ~ 80%. Let's see how we do. 
 
 
-```{r "get data", echo=9:10}
+To get the data use the following function. The data are stored in my GitHub.
+
+```{r "get data", echo=9:13}
 
 ## this section gets the data and loads it into training and testing data files
 
-        ##set working directory
-
-        setwd("/Users/winstonsaunders/Documents/TitanicKaggle")
-
-        ## get data sets
+        
+        ## get data sets from github repo
         ## use read data steps from the dude
 
         library(RCurl)
         readData <- function(path.name, file.name, column.types, missing.types) {
-                read.csv( url( paste0(path.name, file.name) ), 
+                myData<-getURL(  paste0(path.name, file.name) )
+                read.csv(textConnection(myData),
                 colClasses=column.types,
                 na.strings=missing.types )
                 
 }
 
+```
 
-        Titanic.path <- "http://raw.github.com/ww44ss/Titanic/master/"
+The variables for the function are defined as below. 
+The train.column.types simplifies the data cleaning for the analysis.
+
+```{r, echo=2:18, warning=FALSE}
+
+        Titanic.path <- "https://raw.githubusercontent.com/ww44ss/Titanic/master/"
         train.data.file <- "train.csv"
         test.data.file <- "test.csv"
         missing.types <- c("NA", "")
         train.column.types <- c('integer',   # PassengerId
-                        'factor',    # Survived 
-                        'factor',    # Pclass
-                        'character', # Name
-                        'factor',    # Sex
-                        'numeric',   # Age
-                        'integer',   # SibSp
-                        'integer',   # Parch
-                        'character', # Ticket
-                        'numeric',   # Fare
-                        'character', # Cabin
-                        'factor'     # Embarked
-)
-test.column.types <- train.column.types[-2]     # # no Survived column in test.csv
-        
+                                'factor',    # Survived 
+                                'factor',    # Pclass
+                                'character', # Name
+                                'factor',    # Sex
+                                'numeric',   # Age
+                                'integer',   # SibSp
+                                'integer',   # Parch
+                                'character', # Ticket
+                                'numeric',   # Fare
+                                'character', # Cabin
+                                'factor'     # Embarked
+        )
+
+        test.column.types <- train.column.types[-2]     # # no Survived column in test.csv
+```
+
+Now we can get the data quickly
+
+```{r, echo=3:7}
+
+        ##Okay let's get the data
         training <- readData(Titanic.path, train.data.file, train.column.types, missing.types)
-        testing <-  readData(Titanic.path, test.data.file, 
-                      test.column.types, missing.types)
+        testing <-  readData(Titanic.path, test.data.file, test.column.types, missing.types)
 
         trainingRaw<-training
         testingRaw<-testing
@@ -59,14 +71,31 @@ test.column.types <- train.column.types[-2]     # # no Survived column in test.c
 ```
 
 
-
-
 ##Model One
 
-Base first model on Sex and Age per tutorial. Since there are many NA's in the data we replace those with the mean ages for male or females.  
-  
-The model is trained with a _Random Forest_. 
+Let's look at the data using the Amelia Package
 
+```{r, echo=FALSE, fig.align='center'}
+
+        ## map missing data by provided feature
+        require(Amelia)
+        missmap(training, main="Titanic Training Data - Missings Map", 
+                col=c("wheat", "darkorange4"), legend=FALSE, y.cex=1)
+
+
+```
+
+We can explore the data by looking at quick snapshot
+
+```{r, warning=FALSE}
+library(GGally)
+
+ggpairs(training[c(2, 3, 5, 6)])
+
+```
+
+Since there are many NA's in the age data let's try replacing those with the mean ages for male or females.  
+  
 ```{r "clean data1", echo=FALSE}
 
   ## Clean the data
@@ -74,24 +103,32 @@ The model is trained with a _Random Forest_.
         ## calculate the median age for the population, men and women
         meanAge<-mean(training$Age[is.na(training$Age)==FALSE])
 
-        meanMaleAge<-mean(training$Age[training$Sex=="male"&is.na(training$Age)==FALSE])
-        meanFemaleAge<-mean(training$Age[training$Sex=="female"&is.na(training$Age)==FALSE])
+        meanMaleAge<-median(training$Age[training$Sex=="male"&is.na(training$Age)==FALSE])
+        meanFemaleAge<-median(training$Age[training$Sex=="female"&is.na(training$Age)==FALSE])
 
         ## substitute median ages based on sex
         
-                training$Age[is.na(training$Age)&training$Sex=="male"]<-meanMaleAge
-                training$Age[is.na(training$Age)&training$Sex=="female"]<-meanFemaleAge
+        training$Age[is.na(training$Age)&training$Sex=="male"]<-meanMaleAge
+        training$Age[is.na(training$Age)&training$Sex=="female"]<-meanFemaleAge
 
 
-                testing$Age[is.na(testing$Age)&testing$Sex=="male"]<-meanMaleAge
-                testing$Age[is.na(testing$Age)&testing$Sex=="female"]<-meanFemaleAge
+        testing$Age[is.na(testing$Age)&testing$Sex=="male"]<-meanMaleAge
+        testing$Age[is.na(testing$Age)&testing$Sex=="female"]<-meanFemaleAge
 
 
 ```
-The mean male age is `r round(meanMaleAge, 1)` years and the mean female age is `r round(meanFemaleAge,1)` years. Here is a snapshot of the cleaned data.  Note the fractional year on substituted values. 
+
+The median male age is `r round(meanMaleAge, 1)` years and the median female age is `r round(meanFemaleAge,1)` years. Here is a snapshot of the cleaned data.  Note the fractional year on substituted values. 
 
 ```{r}
-training[1:6,c("Survived", "Age", "Sex")]
+
+training$VeryYoung <- 0
+training$VeryYoung[training$Age<10.1]<-1
+```
+
+
+```{r}
+training[1:6,c("Survived", "Age", "Sex", "Pclass", "VeryYoung")]
 ```
 
 The first model looks at the following function
@@ -104,8 +141,8 @@ The first model looks at the following function
       ## create data sub partition
 
         require(caret)
-        set.seed(8675307)
-        xx <- createDataPartition(y=training$Survived, p=0.80, list=FALSE)
+        set.seed(8675309)
+        xx <- createDataPartition(y=training$Survived, p=0.75, list=FALSE)
    
 
 
@@ -114,32 +151,17 @@ The first model looks at the following function
         train1<-training[xx,]
         test1<-training[-xx,]
 
-        #train1 <- train1[,c("Survived","Sex", "Age")]
-        #test1 <-   test1[,c("Survived","Sex", "Age")]
-
-
-        ## simplify Age column by bucketing
-        ## group in multiples of 5*n+1 (1, 6, 11, ...)
-        ## train1$Age2 <- 16*round(train1$Age/16,0)
-        ## test1$Age2 <- 16*round(test1$Age/16,0)
-
         ## set up training control
 
         control1 <- trainControl(method = "cv")
 
         ## model using random forest
 
-        modelfunction<-Survived~Age+Sex
+        modelfunction<-Survived~Pclass+Sex+factor(VeryYoung)
 
         model1 <- train(modelfunction, data = train1, method="rf", trControl = control1, prox=FALSE)
 
         prediction1 <- predict(model1, test1)
-
-        ## assign to zero or one. 
-
-        prediction1[prediction1<0.75]<-0
-        prediction1[prediction1>=0.75]<-1
-        prediction1<-as.factor(prediction1)
 
         t<-table(prediction1, test1$Survived)
 
@@ -158,7 +180,7 @@ The accuracy is `r round(100*conf$overall[1],1)`%.
 
 ##Model One Point Five
 
-Let's look at Fare and Age
+Let's look at The dependence of Fare, Age, and Sex
 
 
 ```{r "look at data one five", fig.align='center', echo=FALSE, warning=FALSE, message=FALSE}
@@ -173,7 +195,7 @@ Let's look at Fare and Age
 
         require(caret)
         set.seed(8675307)
-        xx <- createDataPartition(y=training$Survived, p=0.90, list=FALSE)
+        xx <- createDataPartition(y=training$Survived, p=0.75, list=FALSE)
   
         ##Define training and test sets
 
@@ -249,7 +271,7 @@ Let's look at Fare and Age
         testing$logFare<-log10(testing$Fare)
         
         ## the model function
-        modelfunction <- Survived~Age+factor(Sex)+factor(Pclass)+logFare
+        modelfunction <- Survived~Age+Sex+Pclass+logFare
 
         ## model using random forest
         model1 <- train(modelfunction, data = train1, method="rf", trControl = control1, prox=FALSE)
@@ -263,7 +285,7 @@ A histogram of the predictions and a graph of the results is shows reasonable ac
  
 ```{r "plotz one five", echo=FALSE, fig.align='center'}
 
-        hist(prediction1)
+        #hist(prediction1)
 
         test1x<-cbind(prediction1, test1)
 
@@ -273,9 +295,9 @@ A histogram of the predictions and a graph of the results is shows reasonable ac
         p 
    
 
-        prediction1[prediction1<0.65]<-0
-        prediction1[prediction1>=0.65]<-1
-        prediction1<-as.factor(prediction1)
+        #prediction1[prediction1<0.65]<-0
+        #prediction1[prediction1>=0.65]<-1
+        #prediction1<-as.factor(prediction1)
 
 
         conf2<-confusionMatrix(test1$Survived, prediction1)
@@ -289,8 +311,8 @@ A histogram of the predictions and a graph of the results is shows reasonable ac
         predictionT <- predict(model1, testing)
 
         ## factor into choices
-        predictionT[predictionT<0.65]<-0
-        predictionT[predictionT>=0.65]<-1
+        #predictionT[predictionT<0.65]<-0
+        #predictionT[predictionT>=0.65]<-1
         Survived<-predictionT
         PassengerId<-testing$PassengerId
 
