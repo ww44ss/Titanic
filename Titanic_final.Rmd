@@ -123,12 +123,12 @@ The median male age is `r round(meanMaleAge, 1)` years and the median female age
 ```{r}
 
 training$VeryYoung <- 0
-training$VeryYoung[training$Age<10.1]<-1
+training$VeryYoung[training$Age<18]<-1
 ```
 
 
 ```{r}
-training[1:6,c("Survived", "Age", "Sex", "Pclass", "VeryYoung")]
+training[1:12,c("Survived", "Age", "Sex", "Pclass", "VeryYoung")]
 ```
 
 The first model looks at the following function
@@ -157,7 +157,7 @@ The first model looks at the following function
 
         ## model using random forest
 
-        modelfunction<-Survived~Pclass+Sex+factor(VeryYoung)
+        modelfunction<-Survived~Age +Pclass+Sex+factor(VeryYoung)
 
         model1 <- train(modelfunction, data = train1, method="rf", trControl = control1, prox=FALSE)
 
