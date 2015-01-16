@@ -120,21 +120,32 @@ Since there are many NA's in the age data let's try replacing those with the mea
 
 The median male age is `r round(meanMaleAge, 1)` years and the median female age is `r round(meanFemaleAge,1)` years. Here is a snapshot of the cleaned data.  Note the fractional year on substituted values. 
 
-```{r}
+```{r "feature engineering"}
 
 training$VeryYoung <- 0
 training$VeryYoung[training$Age<18]<-1
 
 testing$VeryYoung<-0
 testing$VeryYoung[testing$Age<18]<-1
+
+
+training$Man <- 0
+training$Man[training$Age>18 & training$Age < 30 ]<-1
+
+testing$Man<-0
+testing$Man[testing$Age>18& testing$Age < 30 ]<-1
+
+
+
+
 ```
 
 
 ```{r}
-training[1:12,c("Survived", "Age", "Sex", "Pclass", "VeryYoung")]
+training[1:12,c("Survived", "Age", "Sex", "Pclass", "VeryYoung", "Man")]
 ```
 
-The first model looks at the following function
+The first model looks at the following function.
 
 ```{r "First model", warning=FALSE, echo=33, message=FALSE}
 
@@ -146,8 +157,7 @@ The first model looks at the following function
         require(caret)
         set.seed(8675309)
         xx <- createDataPartition(y=training$Survived, p=0.75, list=FALSE)
-   
-
+ 
 
         ##Define training and test sets
 
@@ -160,9 +170,9 @@ The first model looks at the following function
 
         ## model using random forest
 
-        modelfunction<-Survived~Age +Pclass+Sex+factor(VeryYoung)
+        modelfunction<-Survived~Age +Pclass+Sex+factor(VeryYoung)+factor(Man)
 
-        model1 <- train(modelfunction, data = train1, method="rf", trControl = control1, prox=FALSE)
+        model1 <- train(modelfunction, data = train1, family="rf" )
 
         prediction1 <- predict(model1, test1)
 
@@ -172,14 +182,18 @@ The first model looks at the following function
 
 
 ```
+use a glm of family "Binomial"
 
 Here is the confusion table
 
 ```{r}
-conf$table
+t
+
+
+model1
 ```
  
-The estimated accuracy is `r round(100*conf$overall[1],1)`%.
+The estimated accuracy is `r round(100*conf$overall[1],5)`%.
 
 ```{r "output One", echo=11}
         
@@ -193,12 +207,12 @@ The estimated accuracy is `r round(100*conf$overall[1],1)`%.
 
         ## Write output file
         Output<-cbind(PassengerId, Survived)
-        write.csv(Output, "Model1.csv", row.names=FALSE)
+        write.csv(Output, "Model2.csv", row.names=FALSE)
 
 
 ```
 
-This model has a kaggle accuracy of 0.76555
+This model has a kaggle accuracy of 0.74641
 
 
 

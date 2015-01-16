@@ -137,31 +137,60 @@ ggpairs(training[c(2, 3, 5, 6)])</code></pre>
 training$VeryYoung[training$Age&lt;18]&lt;-1
 
 testing$VeryYoung&lt;-0
-testing$VeryYoung[testing$Age&lt;18]&lt;-1</code></pre>
-<pre class="r"><code>training[1:12,c(&quot;Survived&quot;, &quot;Age&quot;, &quot;Sex&quot;, &quot;Pclass&quot;, &quot;VeryYoung&quot;)]</code></pre>
-<pre><code>##    Survived Age    Sex Pclass VeryYoung
-## 1         0  22   male      3         0
-## 2         1  38 female      1         0
-## 3         1  26 female      3         0
-## 4         1  35 female      1         0
-## 5         0  35   male      3         0
-## 6         0  29   male      3         0
-## 7         0  54   male      1         0
-## 8         0   2   male      3         1
-## 9         1  27 female      3         0
-## 10        1  14 female      2         1
-## 11        1   4 female      3         1
-## 12        1  58 female      1         0</code></pre>
-<p>The first model looks at the following function</p>
+testing$VeryYoung[testing$Age&lt;18]&lt;-1
+
+
+training$Man &lt;- 0
+training$Man[training$Age&gt;18 &amp; training$Age &lt; 30 ]&lt;-1
+
+testing$Man&lt;-0
+testing$Man[testing$Age&gt;18&amp; testing$Age &lt; 30 ]&lt;-1</code></pre>
+<pre class="r"><code>training[1:12,c(&quot;Survived&quot;, &quot;Age&quot;, &quot;Sex&quot;, &quot;Pclass&quot;, &quot;VeryYoung&quot;, &quot;Man&quot;)]</code></pre>
+<pre><code>##    Survived Age    Sex Pclass VeryYoung Man
+## 1         0  22   male      3         0   1
+## 2         1  38 female      1         0   0
+## 3         1  26 female      3         0   1
+## 4         1  35 female      1         0   0
+## 5         0  35   male      3         0   0
+## 6         0  29   male      3         0   1
+## 7         0  54   male      1         0   0
+## 8         0   2   male      3         1   0
+## 9         1  27 female      3         0   1
+## 10        1  14 female      2         1   0
+## 11        1   4 female      3         1   0
+## 12        1  58 female      1         0   0</code></pre>
+<p>The first model looks at the following function.</p>
+<p>use a glm of family “Binomial”</p>
 <p>Here is the confusion table</p>
-<pre class="r"><code>conf$table</code></pre>
-<pre><code>##           Reference
-## Prediction   0   1
-##          0 124  13
-##          1  26  59</code></pre>
-<p>The estimated accuracy is 82.4%.</p>
+<pre class="r"><code>t</code></pre>
+<pre><code>##            
+## prediction1   0   1
+##           0 121  23
+##           1  16  62</code></pre>
+<pre class="r"><code>model1</code></pre>
+<pre><code>## Random Forest 
+## 
+## 669 samples
+##  13 predictor
+##   2 classes: '0', '1' 
+## 
+## No pre-processing
+## Resampling: Bootstrapped (25 reps) 
+## 
+## Summary of sample sizes: 669, 669, 669, 669, 669, 669, ... 
+## 
+## Resampling results across tuning parameters:
+## 
+##   mtry  Accuracy   Kappa      Accuracy SD  Kappa SD  
+##   2     0.7888371  0.5360327  0.01685547   0.03796515
+##   4     0.7904778  0.5493504  0.02005607   0.04505270
+##   6     0.7751513  0.5205799  0.02472660   0.05497973
+## 
+## Accuracy was used to select the optimal model using  the largest value.
+## The final value used for the model was mtry = 4.</code></pre>
+<p>The estimated accuracy is 82.43243%.</p>
 <pre class="r"><code>        Output&lt;-cbind(PassengerId, Survived)</code></pre>
-<p>This model has a kaggle accuracy of 0.76555</p>
+<p>This model has a kaggle accuracy of 0.74641</p>
 </div>
 
 
