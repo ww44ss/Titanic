@@ -122,63 +122,34 @@ The median male age is `r round(meanMaleAge, 1)` years and the median female age
 
 ```{r "feature engineering"}
 
-training$VeryYoung <- 0
-training$VeryYoung[training$Age<18]<-1
+training$model<-training$Survived
+training$model<-0
 
-testing$VeryYoung<-0
-testing$VeryYoung[testing$Age<18]<-1
+training$model[training$Sex=="female"]<-1
+training$model[training$Age<10 & training$Sex=="male"]<-1
+training$model[(training$Parch+training$SibSp)>3]<-0
+#training$model[training$Age>60]<-1
 
+testing$model<-testing$Survived
+testing$model<-0
 
-training$Man <- 0
-training$Man[training$Age>18 & training$Age < 30 ]<-1
-
-testing$Man<-0
-testing$Man[testing$Age>18& testing$Age < 30 ]<-1
-
-
-
+testing$model[testing$Sex=="female"]<-1
+testing$model[testing$Age<10 & testing$Sex=="male" ]<-1
+testing$model[(testing$Parch+testing$SibSp)>3]<-0
+#testing$model[testing$Age>60]<-1
 
 ```
 
-
-```{r}
-training[1:12,c("Survived", "Age", "Sex", "Pclass", "VeryYoung", "Man")]
-```
 
 The first model looks at the following function.
 
 ```{r "First model", warning=FALSE, echo=33, message=FALSE}
 
-## This is a first simple model
+#
 
+        t<-table(training$model, training$Survived)
 
-      ## create data sub partition
-
-        require(caret)
-        set.seed(8675309)
-        xx <- createDataPartition(y=training$Survived, p=0.75, list=FALSE)
- 
-
-        ##Define training and test sets
-
-        train1<-training[xx,]
-        test1<-training[-xx,]
-
-        ## set up training control
-
-        control1 <- trainControl(method = "cv")
-
-        ## model using random forest
-
-        modelfunction<-Survived~Age +Pclass+Sex+factor(VeryYoung)+factor(Man)
-
-        model1 <- train(modelfunction, data = train1, family="rf" )
-
-        prediction1 <- predict(model1, test1)
-
-        t<-table(prediction1, test1$Survived)
-
-        conf<-confusionMatrix(test1$Survived, prediction1)
+        acc<-(t[1,1]+t[2,2])/(t[1,1]+t[2,2]+t[1,2]+t[2,1])
 
 
 ```
@@ -190,19 +161,19 @@ Here is the confusion table
 t
 
 
-model1
+acc
+
 ```
  
-The estimated accuracy is `r round(100*conf$overall[1],5)`%.
 
 ```{r "output One", echo=11}
         
         ## Make model prediciton
-        predictionT <- predict(model1, testing)
+        
 
         ## factor into choices
         
-        Survived<-as.numeric(predictionT)-1
+        Survived<-testing$model
         PassengerId<-testing$PassengerId
 
         ## Write output file
@@ -212,7 +183,7 @@ The estimated accuracy is `r round(100*conf$overall[1],5)`%.
 
 ```
 
-This model has a kaggle accuracy of 0.74641
+This model has a kaggle accuracy of 0.77033
 
 
 
