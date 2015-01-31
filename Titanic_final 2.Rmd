@@ -7,7 +7,7 @@ output: html_document
 
 ###Introduction
 
-This is a model for the kaggle Titanic dataset. The idea is to make a predictive model of survivor. Judging from leaderboards, I need to get to predictive accuracy of ~ 80%. Let's see how we do. 
+Modeling the kaggle Titanic dataset is a good introduction to several maching learning proactices. The idea is to make a predictive model of survivor. Judging from leaderboards, I want to get to a predictive accuracy of ~ 80%. Let's see how we do. 
 
 
 To get the data use the following function. The data are stored in my GitHub.
