@@ -39,7 +39,8 @@ The train.column.types simplifies the data cleaning for the analysis.
         Titanic.path <- "https://raw.githubusercontent.com/ww44ss/Titanic/master/"
         train.data.file <- "train.csv"
         test.data.file <- "test.csv"
-        missing.types <- c("NA", "")
+        
+missing.types <- c("NA", "")
         train.column.types <- c('integer',   # PassengerId
                                 'factor',    # Survived 
                                 'factor',    # Pclass
@@ -125,10 +126,23 @@ The median male age is `r round(meanMaleAge, 1)` years and the median female age
 training$model<-training$Survived
 training$model<-0
 
-training$model[training$Sex=="female"]<-1
-training$model[training$Age<10 & training$Sex=="male"]<-1
-training$model[(training$Parch+training$SibSp)>3]<-0
-#training$model[training$Age>60]<-1
+##MODEL
+        ## females survive
+        training$model[training$Sex=="female"]<-1
+        ## males with Age < 10 survive
+        training$model[training$Age<10 & training$Sex=="male"]<-1
+        ## those with many relations survive
+        training$model[(training$Parch+training$SibSp)>3]<-0
+        ## those with Age > 65 perished
+        training$model[training$Age > 67]<-0
+        ## those with title "Master" in First Class survived
+        training$model[grepl("Master", training$name) & training$Pclass ==1]<-1
+        ## those with title "Master" in Second Class survived
+        training$model[grepl("Master", training$name) & training$Pclass ==2]<-1
+        
+
+
+        
 
 testing$model<-testing$Survived
 testing$model<-0
@@ -136,6 +150,9 @@ testing$model<-0
 testing$model[testing$Sex=="female"]<-1
 testing$model[testing$Age<10 & testing$Sex=="male" ]<-1
 testing$model[(testing$Parch+testing$SibSp)>3]<-0
+testing$model[testing$Age > 67]<-0
+testing$model[grepl("Master", testing$name) & testing$Pclass ==1]<-1
+testing$model[grepl("Master", testing$name) & testing$Pclass ==2]<-1
 #testing$model[testing$Age>60]<-1
 
 ```
@@ -178,7 +195,7 @@ acc
 
         ## Write output file
         Output<-cbind(PassengerId, Survived)
-        write.csv(Output, "Model2.csv", row.names=FALSE)
+        write.csv(Output, "Model3_2.csv", row.names=FALSE)
 
 
 ```
